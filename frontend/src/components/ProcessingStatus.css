@@ -1,0 +1,165 @@
+.processing-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+/* 文件名 */
+.processing-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 16px;
+}
+
+.file-icon {
+  font-size: 16px;
+}
+
+.file-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 动画区域 */
+.processing-animation {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.wave-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: wave-expand 2s ease-out infinite;
+}
+
+.ring1 { width: 40px; height: 40px; animation-delay: 0s; }
+.ring2 { width: 40px; height: 40px; animation-delay: 0.6s; }
+.ring3 { width: 40px; height: 40px; animation-delay: 1.2s; }
+
+@keyframes wave-expand {
+  0% {
+    width: 40px;
+    height: 40px;
+    opacity: 0.8;
+    border-color: var(--accent);
+  }
+  100% {
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+    border-color: transparent;
+  }
+}
+
+.processing-center-icon {
+  font-size: 36px;
+  z-index: 1;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* 标题 */
+.processing-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.processing-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: -8px;
+}
+
+/* 步骤列表 */
+.processing-steps {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.process-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+}
+
+.process-step-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.process-step-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.process-step-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* 进度条 */
+.process-step-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.process-step-bar-fill {
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  border-radius: 2px;
+  animation: shimmer-bar 1.8s ease-in-out infinite;
+}
+
+@keyframes shimmer-bar {
+  0% { transform: translateX(-100%); width: 30%; }
+  50% { width: 60%; }
+  100% { transform: translateX(400%); width: 30%; }
+}
+
+/* 提示 */
+.processing-tip {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  max-width: 420px;
+  line-height: 1.5;
+}

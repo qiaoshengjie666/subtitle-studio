@@ -1,0 +1,132 @@
+name: 打包 Windows .exe 安装包
+
+on:
+  # 手动触发（在 GitHub 网页上点击 Run workflow）
+  workflow_dispatch:
+  # 或者推送 tag 时自动触发（如 git tag v1.0.0 && git push --tags）
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest   # 使用 GitHub 提供的免费 Windows 机器
+
+    steps:
+      # ── 1. 拉取代码 ──────────────────────────────────────────
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      # ── 2. 安装 Node.js ──────────────────────────────────────
+      - name: 安装 Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # ── 3. 安装 Python 3.11 ──────────────────────────────────
+      - name: 安装 Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ── 4. 安装 ffmpeg ────────────────────────────────────────
+      - name: 安装 ffmpeg
+        run: choco install ffmpeg -y
+        shell: powershell
+
+      # ── 5. 安装 Python 依赖 ───────────────────────────────────
+      - name: 安装 Python 依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install fastapi uvicorn openai-whisper pyinstaller
+        shell: powershell
+
+      # ── 6. 安装 Node 依赖 ─────────────────────────────────────
+      - name: 安装根目录 Node 依赖
+        run: npm install
+        shell: powershell
+
+      - name: 安装前端 Node 依赖
+        run: |
+          cd frontend
+          npm install
+        shell: powershell
+
+      # ── 7. 构建前端 ───────────────────────────────────────────
+      - name: 构建前端
+        run: |
+          cd frontend
+          npm run build
+        shell: powershell
+
+      # ── 8. PyInstaller 打包后端 ───────────────────────────────
+      - name: 获取 Whisper 路径
+        id: whisper_path
+        run: |
+          $path = python -c "import whisper, os; print(os.path.dirname(whisper.__file__))"
+          echo "WHISPER_PATH=$path" >> $env:GITHUB_ENV
+        shell: powershell
+
+      - name: PyInstaller 打包后端
+        run: |
+          cd backend
+          python -m PyInstaller `
+            --onefile `
+            --name subtitle_backend `
+            --distpath "..\backend-dist" `
+            --workpath "..\build\pyinstaller" `
+            --specpath "..\build" `
+            --hidden-import uvicorn.logging `
+            --hidden-import uvicorn.loops `
+            --hidden-import uvicorn.loops.auto `
+            --hidden-import uvicorn.protocols `
+            --hidden-import uvicorn.protocols.http `
+            --hidden-import uvicorn.protocols.http.auto `
+            --hidden-import uvicorn.protocols.websockets `
+            --hidden-import uvicorn.protocols.websockets.auto `
+            --hidden-import uvicorn.lifespan `
+            --hidden-import uvicorn.lifespan.on `
+            --hidden-import fastapi `
+            --hidden-import whisper `
+            --hidden-import tiktoken `
+            --hidden-import tiktoken_ext `
+            --hidden-import tiktoken_ext.openai_public `
+            "--add-data=$env:WHISPER_PATH;whisper" `
+            --noconfirm `
+            run.py
+        shell: powershell
+
+      # ── 9. electron-builder 打包 Windows 安装包 ──────────────
+      - name: 打包 Windows 安装包
+        run: npx electron-builder --win --x64
+        shell: powershell
+        env:
+          # 跳过代码签名（无证书时）
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # ── 10. 上传产物 ──────────────────────────────────────────
+      - name: 上传安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: subtitle-studio-windows
+          path: |
+            dist-electron/*.exe
+          retention-days: 30
+
+      # ── 11. 如果是 tag 触发，自动创建 Release ─────────────────
+      - name: 创建 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-electron/*.exe
+          name: Subtitle Studio ${{ github.ref_name }}
+          body: |
+            ## Subtitle Studio ${{ github.ref_name }}
+
+            ### 下载安装
+            - **Windows**: 下载 `Subtitle Studio Setup *.exe`，双击安装即可
+
+            ### 注意
+            - 首次运行会自动下载 Whisper 模型（约 150MB），需要网络连接
+            - 无需安装 Python / Node.js / ffmpeg
