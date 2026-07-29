@@ -6,8 +6,10 @@ npm-debug.log*
 # 构建产物
 frontend/dist/
 dist-electron/
-backend-dist/
 build/
+# backend-dist 保留目录结构，忽略实际可执行文件
+backend-dist/*
+!backend-dist/.gitkeep
 
 # Python
 __pycache__/

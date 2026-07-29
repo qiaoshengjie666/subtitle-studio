@@ -8,8 +8,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "bash scripts/electron_dev.sh",
-    "build:win": "electron-builder --win --x64",
-    "build:mac": "electron-builder --mac",
+    "build:win": "cd frontend && npm run build && cd .. && electron-builder --win --x64",
+    "build:mac": "cd frontend && npm run build && cd .. && electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "build:frontend": "cd frontend && npm run build",
     "build:backend": "bash scripts/build_backend.sh",
@@ -40,28 +40,24 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "electron/assets/icon.icns",
       "target": [
         { "target": "dmg", "arch": ["arm64", "x64"] }
       ],
       "darkModeSupport": true
     },
     "win": {
-      "icon": "electron/assets/icon.ico",
       "target": [
         { "target": "nsis", "arch": ["x64"] }
       ]
     },
     "linux": {
-      "icon": "electron/assets/icon.png",
       "target": ["AppImage", "deb"]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "installerIcon": "electron/assets/icon.ico",
-      "installerHeaderIcon": "electron/assets/icon.ico"
+      "createStartMenuShortcut": true
     },
     "dmg": {
       "title": "Subtitle Studio",
