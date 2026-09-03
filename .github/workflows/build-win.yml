@@ -31,7 +31,11 @@ jobs:
       - name: 安装 Python 依赖
         run: |
           python -m pip install --upgrade pip
-          python -m pip install fastapi uvicorn openai-whisper pyinstaller
+          python -m pip install fastapi uvicorn openai-whisper deep-translator pyinstaller
+        shell: cmd
+
+      - name: 下载 Whisper base 模型（内置到安装包，用户无需联网）
+        run: python -c "import whisper; whisper.load_model('base')"
         shell: cmd
 
       - name: 安装根目录 Node 依赖
@@ -48,13 +52,15 @@ jobs:
         working-directory: frontend
         shell: cmd
 
-      - name: PyInstaller 打包后端
+      - name: PyInstaller 打包后端（含 base.pt 模型）
         working-directory: backend
         shell: cmd
         run: |
           for /f "delims=" %%i in ('python -c "import whisper, os; print(os.path.dirname(whisper.__file__))"') do set WHISPER_PATH=%%i
           echo Whisper path: %WHISPER_PATH%
-          python -m PyInstaller --onefile --name subtitle_backend --distpath ..\backend-dist --workpath ..\build\pyinstaller --specpath ..\build --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.protocols.websockets --hidden-import uvicorn.protocols.websockets.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on --hidden-import fastapi --hidden-import whisper --hidden-import tiktoken --hidden-import tiktoken_ext --hidden-import tiktoken_ext.openai_public --add-data "%WHISPER_PATH%;whisper" --noconfirm run.py
+          for /f "delims=" %%j in ('python -c "import os; print(os.path.join(os.path.expanduser('~'), '.cache', 'whisper', 'base.pt'))"') do set MODEL_PATH=%%j
+          echo Model path: %MODEL_PATH%
+          python -m PyInstaller --onefile --name subtitle_backend --distpath ..\backend-dist --workpath ..\build\pyinstaller --specpath ..\build --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.protocols.websockets --hidden-import uvicorn.protocols.websockets.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on --hidden-import fastapi --hidden-import whisper --hidden-import tiktoken --hidden-import tiktoken_ext --hidden-import tiktoken_ext.openai_public --add-data "%WHISPER_PATH%;whisper" --add-data "%MODEL_PATH%;whisper_models" --noconfirm run.py
 
       - name: 验证后端产物
         shell: cmd
@@ -90,5 +96,5 @@ jobs:
           body: |
             ## Subtitle Studio ${{ github.ref_name }}
             - **Windows**: 下载 `Subtitle Studio Setup *.exe`，双击安装即可
-            - 首次运行会自动下载 Whisper 模型（约 150MB）
+            - Whisper 模型已内置，**完全离线可用**，无需联网下载
             - 无需安装 Python / Node.js / ffmpeg

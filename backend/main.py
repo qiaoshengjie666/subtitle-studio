@@ -44,11 +44,41 @@ tasks: dict = {}
 _whisper_model = None
 
 
+def get_whisper_model_path() -> Optional[str]:
+    """
+    查找 base.pt 模型文件路径，优先级：
+    1. PyInstaller 打包内置路径（_MEIPASS/whisper_models/base.pt）
+    2. 系统缓存目录（~/.cache/whisper/base.pt）
+    返回路径字符串，找不到则返回 None（将由 whisper 自动下载）
+    """
+    # PyInstaller 打包后，资源目录在 sys._MEIPASS
+    if hasattr(sys, "_MEIPASS"):
+        bundled = Path(sys._MEIPASS) / "whisper_models" / "base.pt"
+        if bundled.exists():
+            print(f"[Whisper] 使用内置模型: {bundled}")
+            return str(bundled)
+
+    # 系统缓存目录
+    cache_dir = Path.home() / ".cache" / "whisper" / "base.pt"
+    if cache_dir.exists():
+        print(f"[Whisper] 使用缓存模型: {cache_dir}")
+        return str(cache_dir)
+
+    return None
+
+
 def get_whisper_model():
     global _whisper_model
     if _whisper_model is None:
         print("正在加载 Whisper 模型（base）...")
-        _whisper_model = whisper.load_model("base")
+        model_path = get_whisper_model_path()
+        if model_path:
+            # 直接从本地路径加载，不触发网络下载
+            _whisper_model = whisper.load_model(model_path)
+        else:
+            # 本地没有，让 whisper 自动下载
+            print("[Whisper] 本地未找到模型，将自动下载（约 145MB）...")
+            _whisper_model = whisper.load_model("base")
         print("Whisper 模型加载完成")
     return _whisper_model
 

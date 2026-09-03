@@ -20,9 +20,19 @@ rm -rf "$ROOT_DIR/build" "$OUTPUT_DIR"
 
 # 获取 whisper 包路径（需要打包进去）
 WHISPER_PATH=$(python3.11 -c "import whisper; import os; print(os.path.dirname(whisper.__file__))")
-echo "   Whisper 路径: $WHISPER_PATH"
+echo "   Whisper 代码路径: $WHISPER_PATH"
 
-# 运行 PyInstaller
+# 确保 base.pt 模型文件存在，若不存在则触发下载
+MODEL_CACHE="$HOME/.cache/whisper/base.pt"
+if [ ! -f "$MODEL_CACHE" ]; then
+    echo "📥 本地未找到 base.pt，开始下载 Whisper 模型（约 145MB）..."
+    python3.11 -c "import whisper; whisper.load_model('base')"
+    echo "✅ 模型下载完成"
+else
+    echo "   Whisper 模型已存在: $MODEL_CACHE ($(du -sh "$MODEL_CACHE" | cut -f1))"
+fi
+
+# 运行 PyInstaller，将 whisper 代码和 base.pt 模型一并打入
 cd "$BACKEND_DIR"
 python3.11 -m PyInstaller \
     --onefile \
@@ -46,6 +56,7 @@ python3.11 -m PyInstaller \
     --hidden-import tiktoken_ext \
     --hidden-import tiktoken_ext.openai_public \
     --add-data "$WHISPER_PATH:whisper" \
+    --add-data "$MODEL_CACHE:whisper_models" \
     --noconfirm \
     run.py
 
