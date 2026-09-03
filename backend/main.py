@@ -11,6 +11,8 @@ import whisper
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from deep_translator import GoogleTranslator
 
 app = FastAPI(title="Subtitle Studio API", version="1.0.0")
 
@@ -114,7 +116,8 @@ def process_video(task_id: str, video_path: str):
                 "id": i + 1,
                 "start": start,
                 "end": end,
-                "text": seg["text"].strip()
+                "text": seg["text"].strip(),
+                "key": f"sub_{str(i + 1).zfill(3)}"
             })
 
         tasks[task_id]["status"] = "done"
@@ -199,6 +202,29 @@ def delete_task(task_id: str):
 
     del tasks[task_id]
     return {"message": "任务已删除"}
+
+
+class TranslateRequest(BaseModel):
+    texts: list[str]
+    source: str
+    target: str
+
+
+@app.post("/api/translate")
+def translate_texts(req: TranslateRequest):
+    if not req.texts:
+        return {"translations": []}
+    try:
+        translator = GoogleTranslator(source=req.source, target=req.target)
+        results = []
+        for text in req.texts:
+            if not text.strip():
+                results.append("")
+            else:
+                results.append(translator.translate(text))
+        return {"translations": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"translation failed: {str(e)}")
 
 
 @app.get("/api/health")

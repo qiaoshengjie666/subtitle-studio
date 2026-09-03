@@ -60,3 +60,17 @@ export async function healthCheck() {
   const res = await apiFetch('/api/health')
   return res.json()
 }
+
+/** 翻译文本 */
+export async function translateTexts(texts, source, target) {
+  const res = await apiFetch('/api/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texts, source, target }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || `translation failed (${res.status})`)
+  }
+  return res.json()
+}
