@@ -9,8 +9,16 @@ const isProd = app.isPackaged
 
 let mainWindow = null
 let backendProcess = null
-let backendLogs = []           // 收集后端启动日志，失败时展示
-const BACKEND_PORT = 8765  // 使用固定端口避免冲突
+let backendLogs = []
+const BACKEND_PORT = 8765
+
+// 日志文件路径（写到用户桌面，方便找到）
+const LOG_FILE = path.join(app.getPath('desktop'), 'subtitle-studio-backend.log')
+
+function writeLog(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}\n`
+  try { fs.appendFileSync(LOG_FILE, line) } catch (e) {}
+}
 
 // ─── 工具函数 ───────────────────────────────────────────────
 
@@ -49,29 +57,38 @@ function startBackend() {
   let backendExe
   let backendArgs = []
 
+  // 启动前清空旧日志
+  try { fs.writeFileSync(LOG_FILE, `=== Subtitle Studio 后端日志 ===\n`) } catch (e) {}
+
   if (isProd) {
-    // 生产环境：使用 PyInstaller 打包的可执行文件
-    const platform = process.platform
-    const exeName = platform === 'win32' ? 'subtitle_backend.exe' : 'subtitle_backend'
+    const exeName = process.platform === 'win32' ? 'subtitle_backend.exe' : 'subtitle_backend'
     backendExe = path.join(process.resourcesPath, 'backend', exeName)
   } else {
-    // 开发环境：直接用 python3.11 运行
     backendExe = 'python3.11'
-    backendArgs = [
-      path.join(__dirname, '..', 'backend', 'main.py')
-    ]
+    backendArgs = [path.join(__dirname, '..', 'backend', 'main.py')]
   }
 
-  console.log(`[Backend] 启动: ${backendExe} ${backendArgs.join(' ')}`)
+  writeLog(`启动后端: ${backendExe}`)
+  writeLog(`resourcesPath: ${process.resourcesPath}`)
+  writeLog(`exe 存在: ${fs.existsSync(backendExe)}`)
+
+  // 检查 exe 是否存在
+  if (isProd && !fs.existsSync(backendExe)) {
+    const msg = `找不到后端可执行文件:\n${backendExe}`
+    writeLog('[ERR] ' + msg)
+    backendLogs.push('[ERR] ' + msg)
+    return
+  }
 
   const env = {
     ...process.env,
     SUBTITLE_PORT: String(BACKEND_PORT),
-    // 生产环境下设置数据目录到用户数据目录
     SUBTITLE_DATA_DIR: isProd
       ? path.join(app.getPath('userData'), 'data')
       : path.join(__dirname, '..', 'backend')
   }
+
+  writeLog(`SUBTITLE_DATA_DIR: ${env.SUBTITLE_DATA_DIR}`)
 
   backendProcess = spawn(backendExe, backendArgs, {
     env,
@@ -81,25 +98,30 @@ function startBackend() {
   backendProcess.stdout.on('data', (data) => {
     const msg = data.toString().trim()
     console.log(`[Backend] ${msg}`)
+    writeLog(msg)
     backendLogs.push(msg)
-    if (backendLogs.length > 100) backendLogs.shift()
+    if (backendLogs.length > 200) backendLogs.shift()
   })
 
   backendProcess.stderr.on('data', (data) => {
     const msg = data.toString().trim()
     console.error(`[Backend ERR] ${msg}`)
+    writeLog('[ERR] ' + msg)
     backendLogs.push('[ERR] ' + msg)
-    if (backendLogs.length > 100) backendLogs.shift()
+    if (backendLogs.length > 200) backendLogs.shift()
   })
 
   backendProcess.on('exit', (code) => {
-    console.log(`[Backend] 进程退出，code=${code}`)
+    const msg = `进程退出，code=${code}`
+    console.log(`[Backend] ${msg}`)
+    writeLog(msg)
     backendProcess = null
   })
 
   backendProcess.on('error', (err) => {
     const msg = `启动失败: ${err.message}`
     console.error(`[Backend] ${msg}`)
+    writeLog('[ERR] ' + msg)
     backendLogs.push('[ERR] ' + msg)
   })
 }
@@ -147,10 +169,13 @@ async function createWindow() {
 
   } catch (err) {
     console.error('[App] 启动失败:', err)
-    const logText = backendLogs.slice(-20).join('\n') || '（无日志输出）'
+    writeLog('[APP ERR] ' + err.message)
+    const logText = backendLogs.slice(-30).join('\n') || '（无日志输出）'
     dialog.showErrorBox(
       '启动失败',
-      `后端服务无法启动：\n${err.message}\n\n━━ 后端日志 ━━\n${logText}`
+      `后端服务无法启动：\n${err.message}\n\n` +
+      `━━ 后端日志 ━━\n${logText}\n\n` +
+      `━━ 完整日志文件 ━━\n${LOG_FILE}\n（请将此文件发给开发者排查）`
     )
     app.quit()
   }
