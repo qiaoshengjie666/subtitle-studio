@@ -86,6 +86,27 @@ if exist "build\pyinstaller" rmdir /s /q "build\pyinstaller"
 for /f "delims=" %%i in ('python -c "import whisper, os; print(os.path.dirname(whisper.__file__))"') do set "WHISPER_PATH=%%i"
 echo    Whisper 路径: %WHISPER_PATH%
 
+:: 确保 base 模型存在并将其随应用打包，避免终端用户首次启动时下载
+set "MODEL_PATH=%USERPROFILE%\.cache\whisper\base.pt"
+if not exist "%MODEL_PATH%" (
+    echo    未找到 Whisper base 模型，正在下载...
+    python -c "import whisper; whisper.load_model('base')"
+    if errorlevel 1 (
+        echo [错误] Whisper base 模型下载失败
+        pause & exit /b 1
+    )
+)
+echo    Whisper 模型: %MODEL_PATH%
+
+:: 找到系统 ffmpeg，并将可执行文件随应用打包
+set "FFMPEG_EXE="
+for /f "delims=" %%i in ('where ffmpeg') do if not defined FFMPEG_EXE set "FFMPEG_EXE=%%i"
+if not defined FFMPEG_EXE (
+    echo [错误] 未找到 ffmpeg，无法打包离线版应用
+    pause & exit /b 1
+)
+echo    ffmpeg: %FFMPEG_EXE%
+
 :: PyInstaller 打包
 cd backend
 python -m PyInstaller ^
@@ -113,7 +134,11 @@ python -m PyInstaller ^
     --hidden-import tiktoken ^
     --hidden-import tiktoken_ext ^
     --hidden-import tiktoken_ext.openai_public ^
+    --collect-all whisper ^
+    --collect-all tiktoken ^
     --add-data "%WHISPER_PATH%;whisper" ^
+    --add-data "%MODEL_PATH%;whisper_models" ^
+    --add-data "%FFMPEG_EXE%;ffmpeg" ^
     --noconfirm ^
     run.py 2>&1
 
@@ -145,4 +170,4 @@ echo.
 echo   双击安装包即可安装到 Windows 电脑
 echo   用户无需安装 Python / Node.js / ffmpeg
 echo.
-pause
+if not defined SUBTITLE_NO_PAUSE pause
