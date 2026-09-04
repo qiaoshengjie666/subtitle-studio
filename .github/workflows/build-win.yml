@@ -54,14 +54,16 @@ jobs:
         shell: powershell
         run: npm run build
 
-      - name: 复制 ffmpeg.exe 到 backend/ffmpeg/
+      - name: 复制 ffmpeg 运行时到 backend/ffmpeg/
         shell: powershell
         run: |
           $ffmpegExe = (Get-Command ffmpeg).Source
           Write-Host "ffmpeg found at: $ffmpegExe"
+          $ffmpegSourceDir = Split-Path -Parent $ffmpegExe
           New-Item -ItemType Directory -Force -Path "backend\ffmpeg" | Out-Null
-          Copy-Item $ffmpegExe "backend\ffmpeg\ffmpeg.exe"
-          Write-Host "ffmpeg copied successfully"
+          # shared 版 ffmpeg 依赖同目录 DLL，必须整体复制，不能只复制 exe。
+          Copy-Item -Path (Join-Path $ffmpegSourceDir '*') -Destination "backend\ffmpeg" -Force
+          Write-Host "ffmpeg runtime copied successfully"
 
       - name: PyInstaller 打包后端
         shell: powershell
@@ -77,10 +79,11 @@ jobs:
             exit 1
           }
 
-          $ffmpegExe = "$root\backend\ffmpeg\ffmpeg.exe"
-          Write-Host "ffmpeg exe: $ffmpegExe"
+          $ffmpegDir = "$root\backend\ffmpeg"
+          $ffmpegExe = Join-Path $ffmpegDir "ffmpeg.exe"
+          Write-Host "ffmpeg runtime: $ffmpegDir"
           if (-not (Test-Path $ffmpegExe)) {
-            Write-Error "ffmpeg.exe not found at $ffmpegExe"
+            Write-Error "ffmpeg.exe not found in $ffmpegDir"
             exit 1
           }
 
@@ -117,7 +120,7 @@ jobs:
             --collect-all whisper `
             --collect-all tiktoken `
             --add-data "${modelPath};whisper_models" `
-            --add-data "${ffmpegExe};ffmpeg" `
+            --add-data "${ffmpegDir};ffmpeg" `
             --noconfirm `
             "$runPy"
 

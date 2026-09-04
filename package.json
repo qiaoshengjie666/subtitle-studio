@@ -1,6 +1,6 @@
 {
   "name": "subtitle-studio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI 视频字幕生成工具 - 基于 Whisper 本地运行",
   "main": "electron/main.js",
   "author": "Subtitle Studio",

@@ -98,14 +98,17 @@ if not exist "%MODEL_PATH%" (
 )
 echo    Whisper 模型: %MODEL_PATH%
 
-:: 找到系统 ffmpeg，并将可执行文件随应用打包
+:: 找到系统 ffmpeg，并将其完整运行目录（含 DLL）随应用打包。
+:: winget 的 shared 版 ffmpeg.exe 依赖同目录 DLL，只复制 exe 会导致安装版无法提取音频。
 set "FFMPEG_EXE="
 for /f "delims=" %%i in ('where ffmpeg') do if not defined FFMPEG_EXE set "FFMPEG_EXE=%%i"
 if not defined FFMPEG_EXE (
     echo [错误] 未找到 ffmpeg，无法打包离线版应用
     pause & exit /b 1
 )
+for %%i in ("%FFMPEG_EXE%") do set "FFMPEG_DIR=%%~dpi"
 echo    ffmpeg: %FFMPEG_EXE%
+echo    ffmpeg 运行目录: %FFMPEG_DIR%
 
 :: PyInstaller 打包
 cd backend
@@ -138,7 +141,7 @@ python -m PyInstaller ^
     --collect-all tiktoken ^
     --add-data "%WHISPER_PATH%;whisper" ^
     --add-data "%MODEL_PATH%;whisper_models" ^
-    --add-data "%FFMPEG_EXE%;ffmpeg" ^
+    --add-data "%FFMPEG_DIR%;ffmpeg" ^
     --noconfirm ^
     run.py 2>&1
 

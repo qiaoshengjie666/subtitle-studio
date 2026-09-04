@@ -226,7 +226,21 @@ ipcMain.handle('show-in-folder', (event, filePath) => {
 
 // ─── App 生命周期 ────────────────────────────────────────────
 
-app.whenReady().then(createWindow)
+// 同一时间只允许一个桌面端实例运行，否则两个后端会争用 8765 端口，
+// 后打开的窗口可能会连接到旧版本后端并产生难以排查的错误。
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  })
+
+  app.whenReady().then(createWindow)
+}
 
 app.on('window-all-closed', () => {
   // 关闭后端进程

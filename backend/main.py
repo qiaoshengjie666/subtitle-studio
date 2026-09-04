@@ -91,8 +91,8 @@ def get_whisper_model():
     return _whisper_model
 
 
-def extract_audio(video_path: str, audio_path: str) -> bool:
-    """使用 ffmpeg 从视频中提取音频"""
+def extract_audio(video_path: str, audio_path: str) -> tuple[bool, str]:
+    """使用 ffmpeg 从视频中提取音频，并保留失败原因供桌面端日志排查。"""
     try:
         cmd = [
             "ffmpeg", "-y",
@@ -109,10 +109,20 @@ def extract_audio(video_path: str, audio_path: str) -> bool:
             stderr=subprocess.PIPE,
             timeout=300
         )
-        return result.returncode == 0
+        if result.returncode == 0:
+            return True, ""
+
+        # ffmpeg 的诊断信息在 stderr。打印它可区分无效视频、编码不支持和
+        # 打包时遗漏 DLL 等问题，避免只有“视频无效”这一种误导性提示。
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        if not detail:
+            detail = f"ffmpeg 退出码: {result.returncode}"
+        print(f"音频提取失败（ffmpeg）: {detail}")
+        return False, detail
     except Exception as e:
-        print(f"音频提取失败: {e}")
-        return False
+        detail = str(e)
+        print(f"音频提取失败（无法启动 ffmpeg）: {detail}")
+        return False, detail
 
 
 def process_video(task_id: str, video_path: str):
@@ -123,11 +133,12 @@ def process_video(task_id: str, video_path: str):
 
         # 提取音频
         audio_path = str(TEMP_DIR / f"{task_id}.wav")
-        success = extract_audio(video_path, audio_path)
+        success, extraction_error = extract_audio(video_path, audio_path)
 
         if not success:
             tasks[task_id]["status"] = "error"
-            tasks[task_id]["message"] = "音频提取失败，请确认视频文件是否有效"
+            tasks[task_id]["message"] = "音频提取失败，请检查视频或重新安装最新版本"
+            tasks[task_id]["error_detail"] = extraction_error
             return
 
         tasks[task_id]["status"] = "transcribing"
