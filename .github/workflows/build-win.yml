@@ -54,7 +54,15 @@ jobs:
         working-directory: frontend
         shell: cmd
 
-      - name: PyInstaller 打包后端（含 base.pt 模型）
+      - name: 获取 ffmpeg.exe 路径并复制到 backend/ffmpeg/
+        shell: cmd
+        run: |
+          for /f "delims=" %%i in ('where ffmpeg') do set FFMPEG_EXE=%%i
+          echo ffmpeg found at: %FFMPEG_EXE%
+          if not exist backend\ffmpeg mkdir backend\ffmpeg
+          copy "%FFMPEG_EXE%" backend\ffmpeg\ffmpeg.exe
+
+      - name: PyInstaller 打包后端（含 base.pt 模型 + ffmpeg）
         working-directory: backend
         shell: cmd
         run: |
@@ -62,7 +70,7 @@ jobs:
           echo Whisper path: %WHISPER_PATH%
           for /f "delims=" %%j in ('python -c "import os; print(os.path.join(os.path.expanduser('~'), '.cache', 'whisper', 'base.pt'))"') do set MODEL_PATH=%%j
           echo Model path: %MODEL_PATH%
-          python -m PyInstaller --onefile --name subtitle_backend --distpath ..\backend-dist --workpath ..\build\pyinstaller --specpath ..\build --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.protocols.websockets --hidden-import uvicorn.protocols.websockets.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on --hidden-import fastapi --hidden-import whisper --hidden-import tiktoken --hidden-import tiktoken_ext --hidden-import tiktoken_ext.openai_public --add-data "%WHISPER_PATH%;whisper" --add-data "%MODEL_PATH%;whisper_models" --noconfirm run.py
+          python -m PyInstaller --onefile --name subtitle_backend --distpath ..\backend-dist --workpath ..\build\pyinstaller --specpath ..\build --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.protocols.websockets --hidden-import uvicorn.protocols.websockets.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on --hidden-import fastapi --hidden-import whisper --hidden-import tiktoken --hidden-import tiktoken_ext --hidden-import tiktoken_ext.openai_public --add-data "%WHISPER_PATH%;whisper" --add-data "%MODEL_PATH%;whisper_models" --add-data "ffmpeg\ffmpeg.exe;ffmpeg" --noconfirm run.py
 
       - name: 验证后端产物
         shell: cmd

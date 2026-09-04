@@ -9,6 +9,7 @@ const isProd = app.isPackaged
 
 let mainWindow = null
 let backendProcess = null
+let backendLogs = []           // 收集后端启动日志，失败时展示
 const BACKEND_PORT = 8765  // 使用固定端口避免冲突
 
 // ─── 工具函数 ───────────────────────────────────────────────
@@ -16,7 +17,7 @@ const BACKEND_PORT = 8765  // 使用固定端口避免冲突
 /**
  * 等待后端 HTTP 服务就绪
  */
-function waitForBackend(port, maxRetries = 30, interval = 1000) {
+function waitForBackend(port, maxRetries = 60, interval = 1000) {
   return new Promise((resolve, reject) => {
     let retries = 0
     const check = () => {
@@ -78,11 +79,17 @@ function startBackend() {
   })
 
   backendProcess.stdout.on('data', (data) => {
-    console.log(`[Backend] ${data.toString().trim()}`)
+    const msg = data.toString().trim()
+    console.log(`[Backend] ${msg}`)
+    backendLogs.push(msg)
+    if (backendLogs.length > 100) backendLogs.shift()
   })
 
   backendProcess.stderr.on('data', (data) => {
-    console.error(`[Backend ERR] ${data.toString().trim()}`)
+    const msg = data.toString().trim()
+    console.error(`[Backend ERR] ${msg}`)
+    backendLogs.push('[ERR] ' + msg)
+    if (backendLogs.length > 100) backendLogs.shift()
   })
 
   backendProcess.on('exit', (code) => {
@@ -91,7 +98,9 @@ function startBackend() {
   })
 
   backendProcess.on('error', (err) => {
-    console.error(`[Backend] 启动失败: ${err.message}`)
+    const msg = `启动失败: ${err.message}`
+    console.error(`[Backend] ${msg}`)
+    backendLogs.push('[ERR] ' + msg)
   })
 }
 
@@ -138,7 +147,11 @@ async function createWindow() {
 
   } catch (err) {
     console.error('[App] 启动失败:', err)
-    dialog.showErrorBox('启动失败', `后端服务无法启动：\n${err.message}`)
+    const logText = backendLogs.slice(-20).join('\n') || '（无日志输出）'
+    dialog.showErrorBox(
+      '启动失败',
+      `后端服务无法启动：\n${err.message}\n\n━━ 后端日志 ━━\n${logText}`
+    )
     app.quit()
   }
 
