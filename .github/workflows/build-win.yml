@@ -10,7 +10,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     permissions:
-      contents: write  # 允许创建 GitHub Release
+      contents: write
 
     steps:
       - name: 拉取代码
@@ -28,69 +28,121 @@ jobs:
 
       - name: 安装 ffmpeg
         run: choco install ffmpeg -y
-        shell: cmd
+        shell: powershell
 
       - name: 安装 Python 依赖
+        shell: powershell
         run: |
           python -m pip install --upgrade pip
           python -m pip install fastapi uvicorn openai-whisper deep-translator pyinstaller
-        shell: cmd
 
-      - name: 下载 Whisper base 模型（内置到安装包，用户无需联网）
+      - name: 下载 Whisper base 模型
+        shell: powershell
         run: python -c "import whisper; whisper.load_model('base')"
-        shell: cmd
 
       - name: 安装根目录 Node 依赖
+        shell: powershell
         run: npm install
-        shell: cmd
 
       - name: 安装前端 Node 依赖
-        run: npm install
         working-directory: frontend
-        shell: cmd
+        shell: powershell
+        run: npm install
 
       - name: 构建前端
-        run: npm run build
         working-directory: frontend
-        shell: cmd
+        shell: powershell
+        run: npm run build
 
-      - name: 获取 ffmpeg.exe 路径并复制到 backend/ffmpeg/
-        shell: cmd
+      - name: 复制 ffmpeg.exe 到 backend/ffmpeg/
+        shell: powershell
         run: |
-          for /f "delims=" %%i in ('where ffmpeg') do set FFMPEG_EXE=%%i
-          echo ffmpeg found at: %FFMPEG_EXE%
-          if not exist backend\ffmpeg mkdir backend\ffmpeg
-          copy "%FFMPEG_EXE%" backend\ffmpeg\ffmpeg.exe
+          $ffmpegExe = (Get-Command ffmpeg).Source
+          Write-Host "ffmpeg found at: $ffmpegExe"
+          New-Item -ItemType Directory -Force -Path "backend\ffmpeg" | Out-Null
+          Copy-Item $ffmpegExe "backend\ffmpeg\ffmpeg.exe"
+          Write-Host "ffmpeg copied successfully"
 
-      - name: PyInstaller 打包后端（含 base.pt 模型 + ffmpeg）
-        working-directory: backend
-        shell: cmd
+      - name: PyInstaller 打包后端
+        shell: powershell
         run: |
-          for /f "delims=" %%i in ('python -c "import whisper, os; print(os.path.dirname(whisper.__file__))"') do set WHISPER_PATH=%%i
-          echo Whisper path: %WHISPER_PATH%
-          for /f "delims=" %%j in ('python -c "import os; print(os.path.join(os.path.expanduser('~'), '.cache', 'whisper', 'base.pt'))"') do set MODEL_PATH=%%j
-          echo Model path: %MODEL_PATH%
-          python -m PyInstaller --onefile --name subtitle_backend --distpath ..\backend-dist --workpath ..\build\pyinstaller --specpath ..\build --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.protocols.websockets --hidden-import uvicorn.protocols.websockets.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on --hidden-import fastapi --hidden-import whisper --hidden-import tiktoken --hidden-import tiktoken_ext --hidden-import tiktoken_ext.openai_public --add-data "%WHISPER_PATH%;whisper" --add-data "%MODEL_PATH%;whisper_models" --add-data "ffmpeg\ffmpeg.exe;ffmpeg" --noconfirm run.py
+          $whisperPath = python -c "import whisper, os; print(os.path.dirname(whisper.__file__))"
+          Write-Host "Whisper path: $whisperPath"
+
+          $modelPath = python -c "import os; print(os.path.join(os.path.expanduser('~'), '.cache', 'whisper', 'base.pt'))"
+          Write-Host "Model path: $modelPath"
+
+          if (-not (Test-Path $modelPath)) {
+            Write-Error "base.pt not found at $modelPath"
+            exit 1
+          }
+
+          Set-Location backend
+          python -m PyInstaller `
+            --onefile `
+            --name subtitle_backend `
+            --distpath ..\backend-dist `
+            --workpath ..\build\pyinstaller `
+            --specpath ..\build `
+            --hidden-import uvicorn.logging `
+            --hidden-import uvicorn.loops `
+            --hidden-import uvicorn.loops.auto `
+            --hidden-import uvicorn.protocols `
+            --hidden-import uvicorn.protocols.http `
+            --hidden-import uvicorn.protocols.http.auto `
+            --hidden-import uvicorn.protocols.websockets `
+            --hidden-import uvicorn.protocols.websockets.auto `
+            --hidden-import uvicorn.lifespan `
+            --hidden-import uvicorn.lifespan.on `
+            --hidden-import fastapi `
+            --hidden-import whisper `
+            --hidden-import tiktoken `
+            --hidden-import tiktoken_ext `
+            --hidden-import tiktoken_ext.openai_public `
+            --collect-all whisper `
+            --collect-all tiktoken `
+            --add-data "${modelPath};whisper_models" `
+            --add-data "ffmpeg\ffmpeg.exe;ffmpeg" `
+            --noconfirm `
+            run.py
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "PyInstaller failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+          Write-Host "PyInstaller completed successfully"
 
       - name: 验证后端产物
-        shell: cmd
-        run: dir backend-dist\
+        shell: powershell
+        run: |
+          Get-ChildItem backend-dist\
+          if (-not (Test-Path "backend-dist\subtitle_backend.exe")) {
+            Write-Error "subtitle_backend.exe not found!"
+            exit 1
+          }
+          Write-Host "Backend binary verified OK"
 
       - name: 打包 Windows 安装包
-        run: npx electron-builder --win --x64 --publish never
-        shell: cmd
+        shell: powershell
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           ELECTRON_BUILDER_CACHE: C:\electron-builder-cache
-          # 使用国内镜像加速下载
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+        run: npx electron-builder --win --x64 --publish never
 
-      - name: 列出打包产物
-        shell: cmd
-        run: dir dist-electron\
+      - name: 验证安装包产物
+        shell: powershell
+        run: |
+          Get-ChildItem dist-electron\
+          $exeFiles = Get-ChildItem dist-electron\ -Filter "*.exe"
+          if ($exeFiles.Count -eq 0) {
+            Write-Error "No .exe found in dist-electron!"
+            exit 1
+          }
+          Write-Host "Found: $($exeFiles.Name)"
 
-      - name: 上传安装包
+      - name: 上传安装包 Artifact
         uses: actions/upload-artifact@v4
         with:
           name: subtitle-studio-windows
