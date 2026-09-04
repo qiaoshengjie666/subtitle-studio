@@ -159,12 +159,14 @@ async function createWindow() {
     await waitForBackend(BACKEND_PORT)
     console.log('[App] 后端服务已就绪')
 
-    // 加载前端
+    // 加载前端。await 能将文件路径或渲染加载失败纳入下方的错误日志和弹窗。
     if (isProd) {
-      mainWindow.loadFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'))
+      const frontendEntry = path.join(__dirname, '..', 'frontend', 'dist', 'index.html')
+      writeLog(`加载前端: ${frontendEntry}`)
+      await mainWindow.loadFile(frontendEntry)
     } else {
       // 开发模式：加载 Vite 开发服务器
-      mainWindow.loadURL('http://localhost:5173')
+      await mainWindow.loadURL('http://localhost:5173')
     }
 
   } catch (err) {
