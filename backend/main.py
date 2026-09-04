@@ -6,6 +6,16 @@ from pathlib import Path
 from typing import Optional
 
 import whisper
+# FastAPI 按版本动态导入 multipart。显式导入让 PyInstaller 能稳定分析并收集
+# 文件上传所需的两个兼容模块名；未安装时仍由 FastAPI 给出标准错误提示。
+try:
+    import python_multipart  # noqa: F401
+except ImportError:
+    pass
+try:
+    import multipart  # noqa: F401
+except ImportError:
+    pass
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

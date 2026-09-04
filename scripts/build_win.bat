@@ -72,8 +72,8 @@ echo.
 :: ── 打包 Python 后端 ──────────────────────────────────────────
 echo [4/5] 打包 Python 后端（PyInstaller）...
 
-:: 安装 Python 依赖
-python -m pip install fastapi uvicorn openai-whisper pyinstaller --quiet 2>&1
+:: 安装 Python 依赖（含 FastAPI 文件上传所需的 python-multipart）
+python -m pip install -r backend\requirements.txt --quiet 2>&1
 if errorlevel 1 (
     echo [警告] 部分 Python 依赖安装失败，尝试继续...
 )
@@ -94,6 +94,10 @@ python -m PyInstaller ^
     --distpath "..\backend-dist" ^
     --workpath "..\build\pyinstaller" ^
     --specpath "..\build" ^
+    --hidden-import python_multipart ^
+    --collect-all python_multipart ^
+    --hidden-import multipart ^
+    --collect-all multipart ^
     --hidden-import uvicorn.logging ^
     --hidden-import uvicorn.loops ^
     --hidden-import uvicorn.loops.auto ^

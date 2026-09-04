@@ -66,7 +66,7 @@ brew install ffmpeg
 brew install python@3.11
 
 # 安装 Python 依赖
-python3.11 -m pip install fastapi uvicorn openai-whisper pyinstaller
+python3.11 -m pip install -r backend/requirements.txt
 
 # 安装 Node 依赖（在项目根目录）
 npm install
@@ -91,7 +91,7 @@ winget install ffmpeg
 # 解压后将 bin 目录添加到系统 PATH
 
 # 4. 安装 Python 依赖（在 PowerShell 中）
-python -m pip install fastapi uvicorn openai-whisper pyinstaller
+python -m pip install -r backend\requirements.txt
 
 # 5. 安装 Node 依赖（在项目根目录）
 npm install
@@ -367,7 +367,7 @@ npx electron-builder --mac
 # ① 确保依赖已安装
 npm install
 cd frontend && npm install && cd ..
-python3.11 -m pip install fastapi uvicorn openai-whisper pyinstaller
+python3.11 -m pip install -r backend/requirements.txt
 
 # ② 一键打包（macOS）
 bash scripts/build_app.sh

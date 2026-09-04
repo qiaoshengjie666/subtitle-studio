@@ -34,7 +34,7 @@ jobs:
         shell: powershell
         run: |
           python -m pip install --upgrade pip
-          python -m pip install fastapi uvicorn "python-multipart" openai-whisper deep-translator pyinstaller
+          python -m pip install -r backend/requirements.txt
 
       - name: 下载 Whisper base 模型
         shell: powershell
@@ -95,6 +95,8 @@ jobs:
             --distpath "$distPath" `
             --workpath "$workPath" `
             --specpath "$specPath" `
+            --hidden-import python_multipart `
+            --collect-all python_multipart `
             --hidden-import multipart `
             --collect-all multipart `
             --hidden-import uvicorn.logging `

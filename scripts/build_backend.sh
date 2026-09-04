@@ -9,11 +9,9 @@ OUTPUT_DIR="$ROOT_DIR/backend-dist"
 
 echo "📦 开始打包 Python 后端..."
 
-# 检查 PyInstaller
-if ! python3.11 -m PyInstaller --version &>/dev/null; then
-    echo "📥 安装 PyInstaller..."
-    python3.11 -m pip install pyinstaller
-fi
+# 安装后端及打包依赖。文件上传接口依赖 python-multipart，必须在打包环境中存在。
+echo "📥 安装后端依赖..."
+python3.11 -m pip install -r "$BACKEND_DIR/requirements.txt"
 
 # 清理旧的构建产物
 rm -rf "$ROOT_DIR/build" "$OUTPUT_DIR"
@@ -40,6 +38,10 @@ python3.11 -m PyInstaller \
     --distpath "$OUTPUT_DIR" \
     --workpath "$ROOT_DIR/build/pyinstaller" \
     --specpath "$ROOT_DIR/build" \
+    --hidden-import python_multipart \
+    --collect-all python_multipart \
+    --hidden-import multipart \
+    --collect-all multipart \
     --hidden-import uvicorn.logging \
     --hidden-import uvicorn.loops \
     --hidden-import uvicorn.loops.auto \
