@@ -66,8 +66,8 @@ jobs:
       - name: PyInstaller 打包后端
         shell: powershell
         run: |
-          $whisperPath = python -c "import whisper, os; print(os.path.dirname(whisper.__file__))"
-          Write-Host "Whisper path: $whisperPath"
+          $root = $env:GITHUB_WORKSPACE
+          Write-Host "Root: $root"
 
           $modelPath = python -c "import os; print(os.path.join(os.path.expanduser('~'), '.cache', 'whisper', 'base.pt'))"
           Write-Host "Model path: $modelPath"
@@ -77,13 +77,24 @@ jobs:
             exit 1
           }
 
-          Set-Location backend
+          $ffmpegExe = "$root\backend\ffmpeg\ffmpeg.exe"
+          Write-Host "ffmpeg exe: $ffmpegExe"
+          if (-not (Test-Path $ffmpegExe)) {
+            Write-Error "ffmpeg.exe not found at $ffmpegExe"
+            exit 1
+          }
+
+          $runPy     = "$root\backend\run.py"
+          $distPath  = "$root\backend-dist"
+          $workPath  = "$root\build\pyinstaller"
+          $specPath  = "$root\build"
+
           python -m PyInstaller `
             --onefile `
             --name subtitle_backend `
-            --distpath ..\backend-dist `
-            --workpath ..\build\pyinstaller `
-            --specpath ..\build `
+            --distpath "$distPath" `
+            --workpath "$workPath" `
+            --specpath "$specPath" `
             --hidden-import uvicorn.logging `
             --hidden-import uvicorn.loops `
             --hidden-import uvicorn.loops.auto `
@@ -102,9 +113,9 @@ jobs:
             --collect-all whisper `
             --collect-all tiktoken `
             --add-data "${modelPath};whisper_models" `
-            --add-data "ffmpeg\ffmpeg.exe;ffmpeg" `
+            --add-data "${ffmpegExe};ffmpeg" `
             --noconfirm `
-            run.py
+            "$runPy"
 
           if ($LASTEXITCODE -ne 0) {
             Write-Error "PyInstaller failed with exit code $LASTEXITCODE"
