@@ -1,9 +1,7 @@
 import os
 import sys
 import uuid
-import json
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -134,14 +132,10 @@ def process_video(task_id: str, video_path: str):
         )
 
         # 构建字幕数据
-        # Whisper 时间戳偏移补偿（秒）
-        # Whisper 的时间戳有时会比实际音频早，可根据实际情况调整
-        TIME_OFFSET = 1.0
-
         segments = []
         for i, seg in enumerate(result["segments"]):
-            start = round(max(0.0, seg["start"] + TIME_OFFSET), 2)
-            end = round(max(0.0, seg["end"] + TIME_OFFSET), 2)
+            start = round(max(0.0, seg["start"]), 2)
+            end = round(max(0.0, seg["end"]), 2)
             segments.append({
                 "id": i + 1,
                 "start": start,
